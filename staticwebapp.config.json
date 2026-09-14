@@ -7,7 +7,7 @@
       ]
     },
     {
-      "route": "/api/admin/*",
+      "route": "/api/manage/*",
       "allowedRoles": [
         "admin"
       ]
@@ -21,7 +21,7 @@
     "404": {
       "rewrite": "/index.html"
     }
-  },
+  ],
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
