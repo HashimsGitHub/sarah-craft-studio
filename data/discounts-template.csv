@@ -1,0 +1,4 @@
+code,type,value,minimum order,usage limit,start date,expiry date,active
+WELCOME10,percentage,10,0,,2026-09-01,2026-12-31,true
+SAVE5,fixed,5,25,100,,,true
+SHIPFREE,free_shipping,0,50,50,,,true
