@@ -1,0 +1,16 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "MONGODB_URI": "mongodb+srv://USER:PASSWORD@HOST/?appName=ClusterH",
+    "MONGODB_DB": "sarahcraftstudio",
+    "PAYPAL_CLIENT_ID": "",
+    "PAYPAL_CLIENT_SECRET": "",
+    "PAYPAL_BASE_URL": "https://api-m.sandbox.paypal.com",
+    "PUBLIC_SITE_URL": "http://localhost:4280",
+    "ACS_EMAIL_CONNECTION_STRING": "",
+    "EMAIL_SENDER": "DoNotReply@your-verified-domain",
+    "ADMIN_EMAIL": "info@sarahcraftstudio.com"
+  }
+}

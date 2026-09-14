@@ -1,0 +1,67 @@
+[
+  {
+    "id": "mama-glass-can",
+    "name": "Mama Floral Glass Can",
+    "slug": "mama-floral-glass-can",
+    "category": "drinkware",
+    "collections": ["mother", "personalized"],
+    "price": 24.0,
+    "currency": "CAD",
+    "description": "A floral glass can designed for everyday drinks and thoughtful gifting.",
+    "image": "https://sarahcraftassets.blob.core.windows.net/site-assets/images/homepage/mama-pack.jpg",
+    "personalizable": false,
+    "active": true
+  },
+  {
+    "id": "holographic-tumbler",
+    "name": "Holographic Tumbler",
+    "slug": "holographic-tumbler",
+    "category": "drinkware",
+    "collections": ["personalized"],
+    "price": 28.0,
+    "currency": "CAD",
+    "description": "A shimmering tumbler that can be personalized for a one-of-a-kind gift.",
+    "image": "https://sarahcraftassets.blob.core.windows.net/site-assets/images/homepage/holographic.png",
+    "personalizable": true,
+    "active": true
+  },
+  {
+    "id": "teacher-bookmark",
+    "name": "Personalized Teacher Bookmark",
+    "slug": "personalized-teacher-bookmark",
+    "category": "stationery",
+    "collections": ["teacher", "personalized"],
+    "price": 12.0,
+    "currency": "CAD",
+    "description": "A personalized bookmark made as a small thank-you for a special teacher.",
+    "image": "https://sarahcraftassets.blob.core.windows.net/site-assets/images/homepage/design-2.png",
+    "personalizable": true,
+    "active": true
+  },
+  {
+    "id": "islamic-gift",
+    "name": "Islamic Personalized Gift",
+    "slug": "islamic-personalized-gift",
+    "category": "home-decor",
+    "collections": ["islamic", "personalized"],
+    "price": 32.0,
+    "currency": "CAD",
+    "description": "A meaningful personalized piece for Ramadan, Eid and special moments.",
+    "image": "https://sarahcraftassets.blob.core.windows.net/site-assets/images/homepage/design-3.png",
+    "personalizable": true,
+    "active": true
+  },
+  {
+    "id": "digital-printable",
+    "name": "Printable Gift Card",
+    "slug": "printable-gift-card",
+    "category": "digital",
+    "collections": [],
+    "price": 6.0,
+    "currency": "CAD",
+    "description": "A printable digital design delivered electronically after purchase.",
+    "image": "https://sarahcraftassets.blob.core.windows.net/site-assets/images/homepage/collage.png",
+    "personalizable": false,
+    "active": true
+  }
+]
