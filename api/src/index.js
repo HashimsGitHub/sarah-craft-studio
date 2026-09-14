@@ -290,12 +290,12 @@ app.http('contact', {
 
 // -------------------- Admin --------------------
 app.http('adminMe', {
-  methods: ['GET'], authLevel: 'anonymous', route: 'admin/me',
+  methods: ['GET'], authLevel: 'anonymous', route: 'manage/me',
   handler: async req => requireAdmin(req) || json(principal(req))
 });
 
 app.http('adminDashboard', {
-  methods: ['GET'], authLevel: 'anonymous', route: 'admin/dashboard',
+  methods: ['GET'], authLevel: 'anonymous', route: 'manage/dashboard',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -319,7 +319,7 @@ app.http('adminDashboard', {
 });
 
 app.http('adminProducts', {
-  methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'admin/products',
+  methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'manage/products',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -335,7 +335,7 @@ app.http('adminProducts', {
 });
 
 app.http('adminProductById', {
-  methods: ['GET', 'PUT', 'DELETE'], authLevel: 'anonymous', route: 'admin/products/{id}',
+  methods: ['GET', 'PUT', 'DELETE'], authLevel: 'anonymous', route: 'manage/products/{id}',
   handler: async (req, context) => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -356,7 +356,7 @@ app.http('adminProductById', {
 });
 
 app.http('adminDiscounts', {
-  methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'admin/discounts',
+  methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'manage/discounts',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -373,7 +373,7 @@ app.http('adminDiscounts', {
 });
 
 app.http('adminDiscountByCode', {
-  methods: ['GET', 'PUT', 'DELETE'], authLevel: 'anonymous', route: 'admin/discounts/{code}',
+  methods: ['GET', 'PUT', 'DELETE'], authLevel: 'anonymous', route: 'manage/discounts/{code}',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -394,7 +394,7 @@ app.http('adminDiscountByCode', {
 });
 
 app.http('adminOrders', {
-  methods: ['GET'], authLevel: 'anonymous', route: 'admin/orders',
+  methods: ['GET'], authLevel: 'anonymous', route: 'manage/orders',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
@@ -405,7 +405,7 @@ app.http('adminOrders', {
 });
 
 app.http('adminOrderById', {
-  methods: ['GET', 'PUT'], authLevel: 'anonymous', route: 'admin/orders/{id}',
+  methods: ['GET', 'PUT'], authLevel: 'anonymous', route: 'manage/orders/{id}',
   handler: async req => {
     const denied = requireAdmin(req); if (denied) return denied;
     const d = await db();
