@@ -1,0 +1,14 @@
+{
+  "name": "sarah-craft-studio-api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.0",
+    "@azure/communication-email": "^1.0.0",
+    "mongodb": "^6.20.0"
+  }
+}

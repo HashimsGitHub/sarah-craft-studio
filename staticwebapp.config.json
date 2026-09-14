@@ -1,23 +1,33 @@
 {
-  "navigationFallback": {
-    "rewrite": "/index.html"
-  },
   "routes": [
     {
-      "route": "/admin",
-      "allowedRoles": ["authenticated"]
+      "route": "/admin/*",
+      "allowedRoles": [
+        "admin"
+      ]
     },
     {
       "route": "/api/admin/*",
-      "allowedRoles": ["authenticated"]
+      "allowedRoles": [
+        "admin"
+      ]
     }
   ],
   "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/github?post_login_redirect_uri=/admin/",
+      "statusCode": 302
+    },
     "404": {
       "rewrite": "/index.html"
     }
   },
   "globalHeaders": {
-    "Cache-Control": "public, max-age=3600, must-revalidate"
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+  },
+  "mimeTypes": {
+    ".json": "application/json"
   }
 }

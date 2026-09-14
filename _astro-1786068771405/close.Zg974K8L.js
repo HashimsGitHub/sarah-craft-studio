@@ -1,1 +1,0 @@
-import"app.BwVHY2Iq.js";import{P as e,f as t}from"./runtime-core.esm-bundler.DaA7U_NZ.js";import{t as n}from"./_plugin-vue_export-helper.BDNMzG2s.js";var r={},i={d:`M2.4 24L0 21.6L9.6 12L0 2.4L2.4 0L12 9.6L21.6 0L24 2.4L14.4 12L24 21.6L21.6 24L12 14.4L2.4 24Z`,fill:`currentColor`};function a(n,r){return e(),t(`path`,i)}var o=n(r,[[`render`,a]]);export{o as default};
