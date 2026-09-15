@@ -1,4 +1,5 @@
 const { app } = require('@azure/functions');
+const { BlobServiceClient } = require('@azure/storage-blob');
 
 const json = (body, status = 200) => ({
   status,
@@ -45,8 +46,9 @@ app.http('adminProductImageUpload', {
   handler: async req => {
     if (!isAdmin(req)) return json({ message: 'Forbidden' }, 403);
 
-    const sasUrl = process.env.BLOB_CONTAINER_SAS_URL;
-    if (!sasUrl) return json({ message: 'BLOB_CONTAINER_SAS_URL is not configured' }, 500);
+    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    const containerName = clean(process.env.AZURE_STORAGE_CONTAINER || 'site-assets', 100);
+    if (!connectionString) return json({ message: 'AZURE_STORAGE_CONNECTION_STRING is not configured' }, 500);
 
     try {
       const body = await req.json();
@@ -65,43 +67,30 @@ app.http('adminProductImageUpload', {
       const withoutExtension = requestedName.replace(/\.(jpg|jpeg|png|webp)$/i, '');
       const blobName = `images/products/${withoutExtension}-${Date.now()}${extension}`;
 
-      const q = sasUrl.indexOf('?');
-      const containerUrl = (q >= 0 ? sasUrl.slice(0, q) : sasUrl).replace(/\/$/, '');
-      const sas = q >= 0 ? sasUrl.slice(q) : '';
-      const encodedBlobName = blobName.split('/').map(encodeURIComponent).join('/');
-      const uploadUrl = `${containerUrl}/${encodedBlobName}${sas}`;
+      const service = BlobServiceClient.fromConnectionString(connectionString);
+      const container = service.getContainerClient(containerName);
+      const blob = container.getBlockBlobClient(blobName);
 
-      const upload = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'x-ms-blob-type': 'BlockBlob',
-          'x-ms-version': '2023-11-03',
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=31536000, immutable'
-        },
-        body: bytes
+      await blob.uploadData(bytes, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'public, max-age=31536000, immutable'
+        }
       });
-
-      if (!upload.ok) {
-        const detail = (await upload.text()).slice(0, 1000);
-        const errorCode = upload.headers.get('x-ms-error-code') || 'Unknown';
-        const requestId = upload.headers.get('x-ms-request-id') || '';
-        console.error('Blob upload failed', upload.status, errorCode, requestId, detail);
-        return json({
-          message: `Azure Blob upload failed (${upload.status}: ${errorCode}).`,
-          storageErrorCode: errorCode,
-          requestId
-        }, 502);
-      }
 
       return json({
         success: true,
         blobName,
-        url: `${containerUrl}/${encodedBlobName}`
+        url: blob.url
       }, 201);
     } catch (e) {
-      console.error('Product image upload failed', e);
-      return json({ message: e.message || 'Image upload failed.' }, 500);
+      console.error('Product image upload failed', e?.statusCode || '', e?.code || '', e?.message || e);
+      const code = clean(e?.code, 100);
+      const status = Number(e?.statusCode) || 500;
+      return json({
+        message: code ? `Azure Blob upload failed (${status}: ${code}).` : (e?.message || 'Image upload failed.'),
+        storageErrorCode: code || undefined
+      }, status >= 400 && status < 600 ? status : 500);
     }
   }
 });
