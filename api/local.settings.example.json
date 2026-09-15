@@ -12,6 +12,7 @@
     "ACS_EMAIL_CONNECTION_STRING": "",
     "EMAIL_SENDER": "DoNotReply@your-verified-domain",
     "ADMIN_EMAIL": "info@sarahcraftstudio.com",
-    "BLOB_CONTAINER_SAS_URL": "https://sarahcraftassets.blob.core.windows.net/site-assets?<container-sas-token>"
+    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net",
+    "AZURE_STORAGE_CONTAINER": "site-assets"
   }
 }
