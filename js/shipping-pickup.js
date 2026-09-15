@@ -57,7 +57,14 @@ async function checkout(){
     pickupBox.checked=active;
     pickupBox.disabled=!active;
     if(pickupNote)pickupNote.textContent=active?'PICKUPYYC is applied. Uncheck to use shipping instead.':'Apply PICKUPYYC in the cart to enable free Calgary pickup.';
-    pickupBox.addEventListener('change',()=>{if(!pickupBox.checked)setPickup(false);renderSummary('#checkout-summary')});
+    pickupBox.addEventListener('change',()=>{
+      if(!pickupBox.checked){
+        setPickup(false);
+        pickupBox.disabled=true;
+        if(pickupNote)pickupNote.textContent='Calgary pickup removed. Apply PICKUPYYC in the cart to enable it again.';
+      }
+      renderSummary('#checkout-summary');
+    });
   }
   renderSummary('#checkout-summary');
   f.onsubmit=async e=>{
