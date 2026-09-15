@@ -2,7 +2,7 @@
   "name": "sarah-craft-studio-api",
   "version": "1.0.0",
   "private": true,
-  "main": "src/index.js",
+  "main": "src/*.js",
   "engines": {
     "node": ">=20"
   },
