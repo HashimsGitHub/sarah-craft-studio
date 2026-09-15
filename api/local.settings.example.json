@@ -11,6 +11,7 @@
     "PUBLIC_SITE_URL": "http://localhost:4280",
     "ACS_EMAIL_CONNECTION_STRING": "",
     "EMAIL_SENDER": "DoNotReply@your-verified-domain",
-    "ADMIN_EMAIL": "info@sarahcraftstudio.com"
+    "ADMIN_EMAIL": "info@sarahcraftstudio.com",
+    "BLOB_CONTAINER_SAS_URL": "https://sarahcraftassets.blob.core.windows.net/site-assets?<container-sas-token>"
   }
 }
