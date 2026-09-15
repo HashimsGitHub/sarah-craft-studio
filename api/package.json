@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "sync:products": "node sync-products.js"
+  },
   "dependencies": {
     "@azure/functions": "^4.7.0",
     "@azure/communication-email": "^1.0.0",
