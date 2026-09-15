@@ -75,6 +75,7 @@ app.http('adminProductImageUpload', {
         method: 'PUT',
         headers: {
           'x-ms-blob-type': 'BlockBlob',
+          'x-ms-version': '2023-11-03',
           'Content-Type': contentType,
           'Cache-Control': 'public, max-age=31536000, immutable'
         },
@@ -83,8 +84,14 @@ app.http('adminProductImageUpload', {
 
       if (!upload.ok) {
         const detail = (await upload.text()).slice(0, 1000);
-        console.error('Blob upload failed', upload.status, detail);
-        return json({ message: `Azure Blob upload failed (${upload.status}).` }, 502);
+        const errorCode = upload.headers.get('x-ms-error-code') || 'Unknown';
+        const requestId = upload.headers.get('x-ms-request-id') || '';
+        console.error('Blob upload failed', upload.status, errorCode, requestId, detail);
+        return json({
+          message: `Azure Blob upload failed (${upload.status}: ${errorCode}).`,
+          storageErrorCode: errorCode,
+          requestId
+        }, 502);
       }
 
       return json({
