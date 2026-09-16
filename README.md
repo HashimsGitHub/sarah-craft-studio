@@ -1,60 +1,159 @@
-# Sarah Craft Studio — Azure Static Web Apps rebuild
+# Sarah Craft Studio
 
-Clean replacement storefront with no Astro/Vue/Hostinger runtime dependencies.
+Sarah Craft Studio is an online handmade and personalized gift store designed to make browsing, ordering, and day-to-day store management simple for both customers and the store owner.
 
-## Important
-This package intentionally does **not** contain `.github/workflows/azure-static-web-apps-gray-plant-097bd000f.yml`. Keep your existing working workflow unchanged.
+## Customer Features
 
-## Azure Static Web Apps workflow change required for the API
-Your current workflow has `api_location: ""`. When you are ready to enable MongoDB/PayPal/admin APIs, change only that value to:
+### Product Catalogue
+Customers can browse the full Sarah Craft Studio product range, including handmade and personalized gifts across multiple categories.
 
-```yaml
-api_location: "api"
-```
+### Product Categories
+The Shop page includes category filtering so customers can quickly narrow the catalogue to the type of product they are looking for.
 
-Everything else in the workflow can remain exactly as it is. Until that one change is made, the static storefront deploys but `/api/*` features will not run.
+### Product Search and Sorting
+Customers can:
 
-## Azure application settings
-Set these in Static Web App > Configuration:
-- `MONGODB_URI`
-- `MONGODB_DB=sarahcraftstudio`
-- `PAYPAL_CLIENT_ID`
-- `PAYPAL_CLIENT_SECRET`
-- `PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com` (Sandbox first)
-- `PUBLIC_SITE_URL=https://gray-plant-097bd000f.6.azurestaticapps.net`
-- `ACS_EMAIL_CONNECTION_STRING`
-- `EMAIL_SENDER`
-- `ADMIN_EMAIL=info@sarahcraftstudio.com`
+- Search products by keyword
+- Browse by category
+- Sort by price
+- Sort by newest products
 
-Never put the MongoDB password, PayPal secret, or email connection string in browser JavaScript or GitHub source.
+### Personalized Products
+Products that support personalization can collect customer-requested names or text before they are added to the cart.
 
-## Admin access
-The admin pages and `/api/admin/*` require the custom `admin` role. Invite/assign the administrator in Azure Static Web Apps role management. The provided admin page uses the built-in GitHub sign-in endpoint.
+### Shopping Cart
+Customers can:
 
-## MongoDB collections
-Create these collections (they are also auto-created by MongoDB on first insert):
-- `products`
-- `discounts`
-- `orders`
+- Add products to cart
+- Review quantities and pricing
+- Remove items
+- Apply eligible discount codes
+- Choose available delivery or pickup options
 
-Use `data/products.json` as starter product data. Product image URLs point to your Azure Blob Storage container; adjust them to match the exact blob filenames you upload.
+### Shipping and Local Pickup
+The store supports standard shipping, free-shipping thresholds, and local Calgary pickup where applicable.
 
-## Local development
-Install Azure Static Web Apps CLI and API dependencies:
-```bash
-cd api && npm install && cd ..
-npx @azure/static-web-apps-cli start . --api-location api
-```
-Copy `api/local.settings.example.json` to `api/local.settings.json` and fill in local secrets.
+### Secure Checkout
+Customers can complete their purchase through a secure online checkout experience.
 
-## Deployment sequence
-1. Back up your repo / create a migration branch.
-2. Remove old broken HTML, `_astro*`, and `assets.zyrosite.com`.
-3. Copy everything from this package into the repo **except your existing `.github` directory**.
-4. Commit and push.
-5. Verify the static pages and Blob images.
-6. Change only `api_location` in the existing workflow from `""` to `"api"` when ready to activate API features.
-7. Add Azure application settings.
-8. Seed MongoDB products/discounts.
-9. Test PayPal Sandbox and email.
-10. Cut over DNS only after end-to-end testing.
+### Discount Codes
+Promotional discounts can be offered using percentage, fixed-value, or free-shipping codes.
+
+### First-Order Welcome Discount
+Visitors who join the mailing list may receive a unique 10% first-order discount code.
+
+The welcome code is:
+
+- Unique to the subscriber
+- Intended for first-time customers
+- Single-use
+- Linked to the email used to join
+
+### Mailing List
+The **Join Our Circle** form allows visitors to subscribe for store news and offers.
+
+Eligible new subscribers receive their welcome offer by email, while the store owner is notified of the new signup.
+
+### Order Confirmation
+After a successful purchase, customers receive an order confirmation email.
+
+### Contact Form
+Visitors can contact Sarah Craft Studio directly through the website contact form.
+
+### Social Media Links
+The website provides direct links to Sarah Craft Studio's social channels, including Facebook, Instagram, TikTok, Pinterest, and YouTube.
+
+### Store Policies
+Customers can easily access dedicated pages for:
+
+- Terms & Conditions
+- Shipping Policy
+- Privacy Policy
+- Return & Refund Policy
+
+### Mobile-Friendly Experience
+The storefront is designed to work across desktop, tablet, and mobile devices.
+
+## Store Admin Features
+
+The store includes a secure Admin area designed for simple day-to-day management without requiring website development knowledge.
+
+### Dashboard
+The Admin Dashboard provides a quick overview of important store information such as products, orders, fulfilment activity, discounts, and sales information.
+
+### Product Management
+The store owner can:
+
+- Add products
+- Edit products
+- Change names and descriptions
+- Update prices
+- Assign categories
+- Manage stock quantities
+- Mark products active or hidden
+- Flag products as personalizable
+- Upload product images
+- Delete products when required
+
+### Product List Search, Filtering and Sorting
+The Admin Products list can be searched, filtered, and sorted to make larger catalogues easier to manage.
+
+Available controls include:
+
+- Product name / Product ID search
+- Category filter
+- Price range filter
+- Stock range filter
+- Active / Hidden status filter
+- Sorting by Product, Category, Price, Stock, and Status
+
+### Discount Management
+The store owner can create and manage promotional codes, including:
+
+- Percentage discounts
+- Fixed-value discounts
+- Free-shipping discounts
+- Minimum order values
+- Usage limits
+- Start and expiry dates
+- Active / disabled status
+
+### Order Management
+The Admin area allows the store owner to review customer orders and manage fulfilment information.
+
+This includes order details, customer information, payment status, delivery method, tracking details, fulfilment status, and internal notes.
+
+### Vacation Mode
+Vacation Mode allows the owner to temporarily pause new checkout activity while keeping the storefront available for browsing.
+
+The owner can enter a custom customer message, for example:
+
+> We’re taking a short New Year break. Orders will reopen on 5 January. You’re welcome to browse in the meantime.
+
+When Vacation Mode is enabled:
+
+- Customers can continue browsing products
+- Existing storefront features remain available
+- Checkout is temporarily unavailable
+- A one-time popup displays the owner's custom message to visitors
+
+### Email Notifications
+The store owner receives email notifications for important customer activity such as new paid orders and new mailing-list signups.
+
+## Designed for Simple Store Management
+
+The goal of the site is to give Sarah Craft Studio a clean, easy-to-manage online store without requiring the owner to work with website code for normal daily operations.
+
+Typical tasks can be handled directly from the Admin area:
+
+- Add or update products
+- Change prices
+- Upload product images
+- Manage discounts
+- Review and fulfil orders
+- Monitor stock
+- Temporarily enable Vacation Mode
+
+## Store
+
+Sarah Craft Studio creates handmade and personalized stationery, drinkware, home décor, gifts, and other creative products.
