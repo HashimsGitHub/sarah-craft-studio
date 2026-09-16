@@ -14,6 +14,14 @@ async function db(){
   return database;
 }
 
+async function vacationGuard(d){
+  const settings=await d.collection('settings').findOne({_id:'store'});
+  if(settings?.vacationMode===true){
+    return json({message:cleanString(settings.vacationMessage,500)||'Sarah Craft Studio is currently on a short break. Ordering is temporarily unavailable.',vacationMode:true},503);
+  }
+  return null;
+}
+
 async function officialCart(d,items=[]){
   let total=0;const out=[];
   for(const i of items){
@@ -42,6 +50,7 @@ app.http('checkoutCreateV2',{
     try{
       const x=await readBody(req);
       const d=await db();
+      const blocked=await vacationGuard(d);if(blocked)return blocked;
       const oc=await officialCart(d,x.cart);
       const requestedMethod=cleanString(x.deliveryMethod,50).toLowerCase();
       const pickupCode=cleanString(x.pickupCode,50).toUpperCase();
