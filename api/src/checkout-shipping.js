@@ -6,12 +6,18 @@ let database;
 
 const json=(body,status=200)=>({status,jsonBody:body,headers:{'Cache-Control':'no-store'}});
 const cleanString=(value,max=500)=>String(value??'').trim().slice(0,max);
+const normalizeEmail=value=>cleanString(value,320).toLowerCase();
 async function readBody(req){try{return await req.json()}catch{return {}}}
 async function db(){
   if(!process.env.MONGODB_URI)throw new Error('MONGODB_URI is not configured');
   if(!client){client=new MongoClient(process.env.MONGODB_URI,{serverSelectionTimeoutMS:10000});await client.connect()}
   if(!database)database=client.db(process.env.MONGODB_DB||'sarahcraftstudio');
   return database;
+}
+
+function exactEmailRegex(email){
+  const escaped=email.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp(`^${escaped}$`,'i');
 }
 
 async function vacationGuard(d){
@@ -65,6 +71,12 @@ app.http('checkoutCreateV2',{
         const c=await d.collection('discounts').findOne({code:cleanString(x.discount.code,50).toUpperCase(),active:true});
         const now=new Date();
         const usable=c&&(!c.startsAt||new Date(c.startsAt)<=now)&&(!c.expiresAt||new Date(c.expiresAt)>=now)&&(!c.minimumOrder||oc.subtotal>=Number(c.minimumOrder))&&(c.usageLimit==null||Number(c.usageCount||0)<Number(c.usageLimit));
+        if(c?.welcomeDiscount){
+          const checkoutEmail=normalizeEmail(x.customer?.email);
+          if(!checkoutEmail||checkoutEmail!==normalizeEmail(c.allowedEmail))throw new Error('This welcome discount code is linked to a different email address.');
+          const previousOrder=await d.collection('orders').findOne({'customer.email':exactEmailRegex(checkoutEmail),paymentStatus:'COMPLETED'});
+          if(previousOrder)throw new Error('This 10% welcome discount is available on your first order only.');
+        }
         if(usable){
           discountCode=c.code;
           if(c.type==='percentage')discount=oc.subtotal*(Number(c.value)/100);
