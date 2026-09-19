@@ -70,11 +70,11 @@ function sharedKeyAuthorization({ accountName, accountKey, method, contentLength
   return `SharedKey ${accountName}:${signature}`;
 }
 
-const allowedTypes = new Map([
-  ['image/jpeg', '.jpg'],
-  ['image/png', '.png'],
-  ['image/webp', '.webp']
-]);
+function isWebP(bytes) {
+  return bytes.length >= 16 && bytes.toString('ascii', 0, 4) === 'RIFF' &&
+    bytes.toString('ascii', 8, 12) === 'WEBP' &&
+    ['VP8 ', 'VP8L', 'VP8X'].includes(bytes.toString('ascii', 12, 16));
+}
 
 app.http('adminProductImageUpload', {
   methods: ['POST'],
@@ -90,19 +90,20 @@ app.http('adminProductImageUpload', {
     try {
       const body = await req.json();
       const contentType = clean(body.contentType, 100).toLowerCase();
-      const extension = allowedTypes.get(contentType);
-      if (!extension) return json({ message: 'Only JPG, PNG and WEBP images are allowed.' }, 400);
+      if (contentType !== 'image/webp') return json({ message: 'Only optimized WebP images are allowed.' }, 400);
 
-      const data = clean(body.data, 12_000_000);
-      if (!data) return json({ message: 'Image data is required.' }, 400);
+      const data = body.data;
+      if (typeof data !== 'string' || !data || data.length > 12_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+        return json({ message: 'Image data is invalid or too large.' }, 400);
+      }
 
       const bytes = Buffer.from(data, 'base64');
-      if (!bytes.length) return json({ message: 'Image data is invalid.' }, 400);
       if (bytes.length > 8 * 1024 * 1024) return json({ message: 'Image must be 8 MB or smaller.' }, 400);
+      if (!isWebP(bytes)) return json({ message: 'The uploaded file is not a WebP image.' }, 400);
 
       const requestedName = safeName(body.fileName || body.productSlug || 'product-image');
       const withoutExtension = requestedName.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-      const blobName = `images/products/${withoutExtension}-${Date.now()}${extension}`;
+      const blobName = `images/products/${withoutExtension}-${crypto.randomUUID()}.webp`;
       const { accountName, accountKey, blobEndpoint } = parseConnectionString(connectionString);
       const encodedBlobName = blobName.split('/').map(encodeURIComponent).join('/');
       const uploadUrl = `${blobEndpoint}/${encodeURIComponent(containerName)}/${encodedBlobName}`;
