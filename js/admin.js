@@ -61,6 +61,8 @@ async function initProducts(){
   }
 
   function fillProduct(p){
+    form.reset();
+    document.querySelector('#product-image-upload-status').textContent='';
     for(const [k,v] of Object.entries(p)){if(form.elements[k]&&form.elements[k].type!=='checkbox') form.elements[k].value=Array.isArray(v)?v.join(', '):(v??'');}
     form.personalizable.checked=!!p.personalizable;
     form.active.checked=p.active!==false;
@@ -70,15 +72,30 @@ async function initProducts(){
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
-  document.querySelector('#product-cancel').onclick=()=>{form.reset();form.dataset.editing='';document.querySelector('#product-form-title').textContent='Add product';document.querySelector('#product-cancel').hidden=true;};
+  document.querySelector('#product-cancel').onclick=()=>{form.reset();form.dataset.editing='';document.querySelector('#product-form-title').textContent='Add product';document.querySelector('#product-cancel').hidden=true;document.querySelector('#product-image-upload-status').textContent='';};
   form.onsubmit=async e=>{
     e.preventDefault();
-    const d=Object.fromEntries(new FormData(form));
-    d.price=Number(d.price);d.stock=Number(d.stock||0);d.personalizable=form.personalizable.checked;d.active=form.active.checked;
-    d.collections=String(d.collections||'').split(',').map(x=>x.trim()).filter(Boolean);
-    const editing=form.dataset.editing;
-    await req(editing?'/products/'+encodeURIComponent(editing):'/products',{method:editing?'PUT':'POST',body:JSON.stringify(d)});
-    msg.textContent='Product saved successfully.';form.reset();form.dataset.editing='';document.querySelector('#product-form-title').textContent='Add product';document.querySelector('#product-cancel').hidden=true;await draw();
+    const save=form.querySelector('button[type="submit"]');
+    const imageInput=document.querySelector('#product-image-file');
+    const imageStatus=document.querySelector('#product-image-upload-status');
+    save.disabled=true;msg.textContent='Saving product…';
+    try{
+      if(imageInput.files?.[0]){
+        await window.uploadProductImage(imageInput.files[0],form,imageStatus);
+        imageInput.value='';
+      }
+      const d=Object.fromEntries(new FormData(form));
+      if(!d.image) throw Error('Add an image URL or choose an image to upload.');
+      d.price=Number(d.price);d.stock=Number(d.stock||0);d.personalizable=form.personalizable.checked;d.active=form.active.checked;
+      d.collections=String(d.collections||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const editing=form.dataset.editing;
+      await req(editing?'/products/'+encodeURIComponent(editing):'/products',{method:editing?'PUT':'POST',body:JSON.stringify(d)});
+      const imageMessage=imageStatus.textContent;
+      msg.textContent='Product saved successfully.';
+      imageStatus.textContent=imageMessage.replace('Save the product to use it.','Image saved to product.');
+      form.reset();form.dataset.editing='';document.querySelector('#product-form-title').textContent='Add product';document.querySelector('#product-cancel').hidden=true;await draw();
+    }catch(error){msg.textContent='Save failed: '+error.message;}
+    finally{save.disabled=false;}
   };
   await draw();
 }
