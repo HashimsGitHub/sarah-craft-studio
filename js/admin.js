@@ -105,20 +105,85 @@ async function initDiscounts(){
   const list=document.querySelector('#admin-discounts');
   if(!form||!list) return;
   const msg=document.querySelector('#admin-discount-status');
+  const type=form.elements.type;
+  const valueUnit=document.querySelector('#discount-value-unit');
+  const minItems=document.querySelector('#minimum-items-fields');
+  const minTotal=document.querySelector('#minimum-total-fields');
+  const usageFields=document.querySelector('#usage-limit-fields');
+
+  function surpriseCode(){
+    const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const bytes=new Uint32Array(6);
+    crypto.getRandomValues(bytes);
+    return 'SURPRISE'+Array.from(bytes,n=>chars[n%chars.length]).join('');
+  }
+  function sync(){
+    valueUnit.textContent=type.value==='percentage'?'%':type.value==='fixed'?'CAD':'';
+    form.value.disabled=type.value==='free_shipping';
+    const mt=form.querySelector('input[name="minimumType"]:checked')?.value||'none';
+    minItems.hidden=mt!=='items'; minTotal.hidden=mt!=='total';
+    form.minimumItems.required=mt==='items'; form.minimumOrder.required=mt==='total';
+    const rt=form.querySelector('input[name="redemptionType"]:checked')?.value||'unlimited';
+    usageFields.hidden=rt!=='limited'; form.usageLimit.required=rt==='limited';
+    form.expiresAt.disabled=form.noEndDate.checked;
+    if(form.noEndDate.checked) form.expiresAt.value='';
+  }
+  type.onchange=sync;
+  form.querySelectorAll('input[name="minimumType"],input[name="redemptionType"],input[name="noEndDate"]').forEach(x=>x.onchange=sync);
+  document.querySelector('#generate-discount-code').onclick=()=>{form.code.value=surpriseCode();};
 
   async function draw(){
     const x=await req('/discounts');
-    list.innerHTML=x.discounts.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min order</th><th>Usage</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.discounts.map(d=>`<tr><td><strong>${esc(d.code)}</strong></td><td>${esc(statusLabel(d.type))}</td><td>${d.type==='percentage'?`${Number(d.value)}%`:d.type==='fixed'?money(d.value):'—'}</td><td>${money(d.minimumOrder)}</td><td>${Number(d.usageCount||0)}${d.usageLimit!=null?` / ${Number(d.usageLimit)}`:''}</td><td>${d.expiresAt?date(d.expiresAt):'Never'}</td><td>${d.active?'Active':'Disabled'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-discount="${esc(d.code)}">Edit</button><button class="admin-danger" data-delete-discount="${esc(d.code)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No discount codes configured.</div>';
+    list.innerHTML=x.discounts.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Customer</th><th>Discount</th><th>Minimum</th><th>Usage</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.discounts.map(d=>`<tr><td><strong>${esc(d.code)}</strong></td><td>${esc(d.allowedEmail||'—')}</td><td>${d.type==='percentage'?`${Number(d.value)}%`:d.type==='fixed'?money(d.value):'Free shipping'}</td><td>${Number(d.minimumItems||0)>0?`${Number(d.minimumItems)} items`:Number(d.minimumOrder||0)>0?money(d.minimumOrder):'None'}</td><td>${Number(d.usageCount||0)}${d.usageLimit!=null?` / ${Number(d.usageLimit)}`:' / ∞'}${d.singleUsePerBuyer?' · 1/buyer':''}</td><td>${d.expiresAt?date(d.expiresAt):'No end date'}</td><td>${d.active?'Active':'Disabled'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-discount="${esc(d.code)}">Edit</button><button class="admin-danger" data-delete-discount="${esc(d.code)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No discount codes configured.</div>';
     list.querySelectorAll('[data-edit-discount]').forEach(b=>b.onclick=async()=>fill((await req('/discounts/'+encodeURIComponent(b.dataset.editDiscount))).discount));
     list.querySelectorAll('[data-delete-discount]').forEach(b=>b.onclick=async()=>{if(confirm(`Delete discount ${b.dataset.deleteDiscount}?`)){await req('/discounts/'+encodeURIComponent(b.dataset.deleteDiscount),{method:'DELETE'});await draw();}});
   }
 
   function fill(d){
-    form.code.value=d.code||'';form.type.value=d.type||'percentage';form.value.value=d.value??0;form.minimumOrder.value=d.minimumOrder??0;form.usageLimit.value=d.usageLimit??'';form.startsAt.value=d.startsAt?new Date(d.startsAt).toISOString().slice(0,10):'';form.expiresAt.value=d.expiresAt?new Date(d.expiresAt).toISOString().slice(0,10):'';form.active.checked=d.active!==false;form.dataset.editing=d.code;document.querySelector('#discount-form-title').textContent='Edit discount';document.querySelector('#discount-cancel').hidden=false;window.scrollTo({top:0,behavior:'smooth'});
+    form.reset();
+    form.code.value=d.code||'';
+    form.type.value=d.type||'percentage';
+    form.value.value=d.value??0;
+    form.allowedEmail.value=d.allowedEmail||'';
+    const mt=Number(d.minimumItems||0)>0?'items':Number(d.minimumOrder||0)>0?'total':'none';
+    form.querySelector(`input[name="minimumType"][value="${mt}"]`).checked=true;
+    form.minimumItems.value=d.minimumItems??'';
+    form.minimumOrder.value=d.minimumOrder??'';
+    form.startsAt.value=d.startsAt?new Date(d.startsAt).toISOString().slice(0,10):'';
+    form.noEndDate.checked=!d.expiresAt;
+    form.expiresAt.value=d.expiresAt?new Date(d.expiresAt).toISOString().slice(0,10):'';
+    const rt=d.usageLimit==null?'unlimited':'limited';
+    form.querySelector(`input[name="redemptionType"][value="${rt}"]`).checked=true;
+    form.usageLimit.value=d.usageLimit??'';
+    form.singleUsePerBuyer.checked=d.singleUsePerBuyer!==false;
+    form.active.checked=d.active!==false;
+    form.dataset.editing=d.code;
+    document.querySelector('#discount-form-title').textContent='Edit offer';
+    document.querySelector('#discount-cancel').hidden=false;
+    sync();window.scrollTo({top:0,behavior:'smooth'});
   }
-  document.querySelector('#discount-cancel').onclick=()=>{form.reset();form.dataset.editing='';document.querySelector('#discount-form-title').textContent='Add discount';document.querySelector('#discount-cancel').hidden=true;};
-  form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(form));d.value=Number(d.value||0);d.minimumOrder=Number(d.minimumOrder||0);d.usageLimit=d.usageLimit===''?null:Number(d.usageLimit);d.active=form.active.checked;const editing=form.dataset.editing;await req(editing?'/discounts/'+encodeURIComponent(editing):'/discounts',{method:editing?'PUT':'POST',body:JSON.stringify(d)});msg.textContent='Discount saved successfully.';form.reset();form.dataset.editing='';document.querySelector('#discount-form-title').textContent='Add discount';document.querySelector('#discount-cancel').hidden=true;await draw();};
-  await draw();
+  function reset(){
+    form.reset();form.dataset.editing='';form.code.value=surpriseCode();form.noEndDate.checked=true;form.singleUsePerBuyer.checked=true;
+    document.querySelector('#discount-form-title').textContent='Customize your offer details';document.querySelector('#discount-cancel').hidden=true;msg.textContent='';sync();
+  }
+  document.querySelector('#discount-cancel').onclick=reset;
+  form.onsubmit=async e=>{
+    e.preventDefault();msg.textContent='Saving discount…';
+    try{
+      const d=Object.fromEntries(new FormData(form));
+      d.value=form.type.value==='free_shipping'?0:Number(d.value||0);
+      d.minimumItems=d.minimumType==='items'?Number(d.minimumItems||0):0;
+      d.minimumOrder=d.minimumType==='total'?Number(d.minimumOrder||0):0;
+      d.usageLimit=d.redemptionType==='limited'?Number(d.usageLimit||0):null;
+      d.singleUsePerBuyer=form.singleUsePerBuyer.checked;
+      d.expiresAt=form.noEndDate.checked?'':d.expiresAt;
+      d.active=form.active.checked;
+      const editing=form.dataset.editing;
+      await req(editing?'/discounts/'+encodeURIComponent(editing):'/discounts',{method:editing?'PUT':'POST',body:JSON.stringify(d)});
+      msg.textContent='Discount saved successfully.';reset();await draw();
+    }catch(error){msg.textContent='Save failed: '+error.message;}
+  };
+  reset();await draw();
 }
 
 async function initOrders(){
