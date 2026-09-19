@@ -108,10 +108,16 @@ app.http('productReviewsPublic', {
 });
 
 app.http('productReviewSubmit', {
-  methods: ['POST'], authLevel: 'anonymous', route: 'reviews',
+  methods: ['GET', 'POST'], authLevel: 'anonymous', route: 'reviews',
   handler: async req => {
+    const d = await db();
+    if (req.method === 'GET') {
+      const reviews = await d.collection('productReviews')
+        .find({ status: 'published' }, { projection: { email: 0, fullName: 0 } })
+        .sort({ submittedAt: -1 }).limit(500).toArray();
+      return json({ reviews });
+    }
     try {
-      const d = await db();
       const input = await body(req);
       const review = await cleanReview(d, { ...input, status: 'pending', source: 'customer' }, {}, false);
       await d.collection('productReviews').insertOne(review);
