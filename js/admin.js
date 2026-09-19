@@ -110,6 +110,8 @@ async function initDiscounts(){
   const minItems=document.querySelector('#minimum-items-fields');
   const minTotal=document.querySelector('#minimum-total-fields');
   const usageFields=document.querySelector('#usage-limit-fields');
+  const voucherEmailFields=document.querySelector('#voucher-email-fields');
+  const voucherCampaignNote=document.querySelector('#voucher-campaign-note');
 
   function surpriseCode(){
     const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -127,14 +129,19 @@ async function initDiscounts(){
     usageFields.hidden=rt!=='limited'; form.usageLimit.required=rt==='limited';
     form.expiresAt.disabled=form.noEndDate.checked;
     if(form.noEndDate.checked) form.expiresAt.value='';
+    const audience=form.querySelector('input[name="audienceType"]:checked')?.value||'email';
+    voucherEmailFields.hidden=audience!=='email';
+    voucherCampaignNote.hidden=audience!=='campaign';
+    form.allowedEmail.required=audience==='email';
+    if(audience==='campaign') form.allowedEmail.value='';
   }
   type.onchange=sync;
-  form.querySelectorAll('input[name="minimumType"],input[name="redemptionType"],input[name="noEndDate"]').forEach(x=>x.onchange=sync);
+  form.querySelectorAll('input[name="minimumType"],input[name="redemptionType"],input[name="noEndDate"],input[name="audienceType"]').forEach(x=>x.onchange=sync);
   document.querySelector('#generate-discount-code').onclick=()=>{form.code.value=surpriseCode();};
 
   async function draw(){
     const x=await req('/discounts');
-    list.innerHTML=x.discounts.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Customer</th><th>Discount</th><th>Minimum</th><th>Usage</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.discounts.map(d=>`<tr><td><strong>${esc(d.code)}</strong></td><td>${esc(d.allowedEmail||'—')}</td><td>${d.type==='percentage'?`${Number(d.value)}%`:d.type==='fixed'?money(d.value):'Free shipping'}</td><td>${Number(d.minimumItems||0)>0?`${Number(d.minimumItems)} items`:Number(d.minimumOrder||0)>0?money(d.minimumOrder):'None'}</td><td>${Number(d.usageCount||0)}${d.usageLimit!=null?` / ${Number(d.usageLimit)}`:' / ∞'}${d.singleUsePerBuyer?' · 1/buyer':''}</td><td>${d.expiresAt?date(d.expiresAt):'No end date'}</td><td>${d.active?'Active':'Disabled'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-discount="${esc(d.code)}">Edit</button><button class="admin-danger" data-delete-discount="${esc(d.code)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No discount codes configured.</div>';
+    list.innerHTML=x.discounts.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Audience</th><th>Discount</th><th>Minimum</th><th>Usage</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.discounts.map(d=>`<tr><td><strong>${esc(d.code)}</strong></td><td>${d.audienceType==='campaign'?'Mass campaign':esc(d.allowedEmail||'Customer email')}</td><td>${d.type==='percentage'?`${Number(d.value)}%`:d.type==='fixed'?money(d.value):'Free shipping'}</td><td>${Number(d.minimumItems||0)>0?`${Number(d.minimumItems)} items`:Number(d.minimumOrder||0)>0?money(d.minimumOrder):'None'}</td><td>${Number(d.usageCount||0)}${d.usageLimit!=null?` / ${Number(d.usageLimit)}`:' / ∞'}${d.singleUsePerBuyer?' · 1/buyer':''}</td><td>${d.expiresAt?date(d.expiresAt):'No end date'}</td><td>${d.active?'Active':'Disabled'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-discount="${esc(d.code)}">Edit</button><button class="admin-danger" data-delete-discount="${esc(d.code)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No discount codes configured.</div>';
     list.querySelectorAll('[data-edit-discount]').forEach(b=>b.onclick=async()=>fill((await req('/discounts/'+encodeURIComponent(b.dataset.editDiscount))).discount));
     list.querySelectorAll('[data-delete-discount]').forEach(b=>b.onclick=async()=>{if(confirm(`Delete discount ${b.dataset.deleteDiscount}?`)){await req('/discounts/'+encodeURIComponent(b.dataset.deleteDiscount),{method:'DELETE'});await draw();}});
   }
@@ -145,6 +152,8 @@ async function initDiscounts(){
     form.type.value=d.type||'percentage';
     form.value.value=d.value??0;
     form.allowedEmail.value=d.allowedEmail||'';
+    const audience=d.audienceType==='campaign'||!d.allowedEmail?'campaign':'email';
+    form.querySelector(`input[name="audienceType"][value="${audience}"]`).checked=true;
     const mt=Number(d.minimumItems||0)>0?'items':Number(d.minimumOrder||0)>0?'total':'none';
     form.querySelector(`input[name="minimumType"][value="${mt}"]`).checked=true;
     form.minimumItems.value=d.minimumItems??'';
@@ -172,6 +181,8 @@ async function initDiscounts(){
     try{
       const d=Object.fromEntries(new FormData(form));
       d.value=form.type.value==='free_shipping'?0:Number(d.value||0);
+      d.audienceType=d.audienceType||'email';
+      d.allowedEmail=d.audienceType==='email'?String(d.allowedEmail||'').trim().toLowerCase():'';
       d.minimumItems=d.minimumType==='items'?Number(d.minimumItems||0):0;
       d.minimumOrder=d.minimumType==='total'?Number(d.minimumOrder||0):0;
       d.usageLimit=d.redemptionType==='limited'?Number(d.usageLimit||0):null;
