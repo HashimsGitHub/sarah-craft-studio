@@ -235,6 +235,8 @@ app.http('checkoutCreate', {
         if (c.type === 'fixed') discount = Math.min(oc.subtotal, Number(c.value));
         if (c.type === 'free_shipping') shipping = 0;
       }
+      const phone = cleanString(x.customer?.phone, 40);
+      if (!phone || phone.replace(/\D/g, '').length < 10) throw new Error('A valid mobile number is required.');
       const total = Math.max(0, oc.subtotal - discount + shipping);
       const pp = await paypalToken();
       const site = process.env.PUBLIC_SITE_URL || 'https://gray-plant-097bd000f.6.azurestaticapps.net';
@@ -256,7 +258,17 @@ app.http('checkoutCreate', {
       await d.collection('orders').insertOne({
         orderNumber,
         paypalOrderId: p.id,
-        customer: x.customer || {},
+        customer: {
+          firstName: cleanString(x.customer?.firstName, 100),
+          lastName: cleanString(x.customer?.lastName, 100),
+          email: normalizeEmail(x.customer?.email),
+          phone,
+          address1: cleanString(x.customer?.address1, 300),
+          city: cleanString(x.customer?.city, 120),
+          province: cleanString(x.customer?.province, 120),
+          postalCode: cleanString(x.customer?.postalCode, 40),
+          country: cleanString(x.customer?.country || 'CA', 10)
+        },
         items: oc.items,
         subtotal: oc.subtotal,
         discount,
