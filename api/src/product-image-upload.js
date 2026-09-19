@@ -103,7 +103,10 @@ app.http('adminProductImageUpload', {
 
       const requestedName = safeName(body.fileName || body.productSlug || 'product-image');
       const withoutExtension = requestedName.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-      const blobName = `images/products/${withoutExtension}-${crypto.randomUUID()}.webp`;
+      // Keep the original basename while giving each upload its own cacheable URL.
+      const productFolder = safeName(body.productSlug || 'product');
+      const uploadFolder = crypto.randomBytes(4).toString('hex');
+      const blobName = `images/products/${productFolder}/${uploadFolder}/${withoutExtension}.webp`;
       const { accountName, accountKey, blobEndpoint } = parseConnectionString(connectionString);
       const encodedBlobName = blobName.split('/').map(encodeURIComponent).join('/');
       const uploadUrl = `${blobEndpoint}/${encodeURIComponent(containerName)}/${encodedBlobName}`;
