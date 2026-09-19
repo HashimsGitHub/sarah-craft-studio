@@ -77,29 +77,66 @@ function cleanProduct(input, existing = {}) {
   };
 }
 
+function normalizeEmail(value) {
+  return cleanString(value, 320).toLowerCase();
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+}
+
 function cleanDiscount(input, existing = {}) {
   const code = cleanString(input.code || existing.code, 50).toUpperCase();
   if (!code) throw new Error('Discount code is required');
+  if (!existing.code && !/^SURPRISE[A-Z0-9]{6}$/.test(code)) throw new Error('New promo codes must be SURPRISE followed by exactly 6 letters or numbers');
   const allowedTypes = ['percentage', 'fixed', 'free_shipping'];
   const type = cleanString(input.type || existing.type || 'percentage', 50);
   if (!allowedTypes.includes(type)) throw new Error('Invalid discount type');
   const value = Number(input.value ?? existing.value ?? 0);
   if (!Number.isFinite(value) || value < 0) throw new Error('Discount value must be a valid non-negative number');
+  if (type === 'percentage' && value > 100) throw new Error('Percentage discount cannot exceed 100');
   const minimumOrder = Number(input.minimumOrder ?? existing.minimumOrder ?? 0);
+  const minimumItems = Number(input.minimumItems ?? existing.minimumItems ?? 0);
   const usageLimit = input.usageLimit === '' || input.usageLimit == null ? null : Number(input.usageLimit);
+  const allowedEmail = normalizeEmail(input.allowedEmail ?? existing.allowedEmail);
+  if (!allowedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(allowedEmail)) throw new Error('A valid customer email is required');
+  const hasStartsAt = Object.prototype.hasOwnProperty.call(input, 'startsAt');
+  const hasExpiresAt = Object.prototype.hasOwnProperty.call(input, 'expiresAt');
   return {
     code,
     type,
-    value,
+    value: type === 'free_shipping' ? 0 : value,
     minimumOrder: Number.isFinite(minimumOrder) && minimumOrder >= 0 ? minimumOrder : 0,
-    usageLimit: usageLimit == null ? null : Math.max(0, usageLimit),
+    minimumItems: Number.isFinite(minimumItems) && minimumItems >= 0 ? Math.floor(minimumItems) : 0,
+    usageLimit: usageLimit == null ? null : Math.max(1, Math.floor(usageLimit)),
     usageCount: Number(existing.usageCount || 0),
-    startsAt: input.startsAt ? new Date(input.startsAt) : (existing.startsAt || null),
-    expiresAt: input.expiresAt ? new Date(input.expiresAt) : (existing.expiresAt || null),
+    singleUsePerBuyer: input.singleUsePerBuyer !== undefined ? Boolean(input.singleUsePerBuyer) : (existing.singleUsePerBuyer !== false),
+    allowedEmail,
+    startsAt: hasStartsAt ? (input.startsAt ? new Date(input.startsAt) : null) : (existing.startsAt || null),
+    expiresAt: hasExpiresAt ? (input.expiresAt ? new Date(input.expiresAt) : null) : (existing.expiresAt || null),
     active: input.active !== undefined ? Boolean(input.active) : (existing.active !== false),
     createdAt: existing.createdAt || new Date(),
     updatedAt: new Date()
   };
+}
+
+async function discountEligibility(d, discount, opts = {}) {
+  const subtotal = Number(opts.subtotal || 0);
+  const itemCount = Number(opts.itemCount || 0);
+  const buyerEmail = normalizeEmail(opts.email);
+  if (!discount || discount.active === false) return 'Discount code is not valid.';
+  const now = new Date();
+  if (discount.startsAt && new Date(discount.startsAt) > now) return 'Discount code is not active yet.';
+  if (discount.expiresAt && new Date(discount.expiresAt) < now) return 'Discount code has expired.';
+  if (discount.minimumOrder && subtotal < Number(discount.minimumOrder)) return 'Minimum order is CAD $' + Number(discount.minimumOrder).toFixed(2) + '.';
+  if (discount.minimumItems && itemCount < Number(discount.minimumItems)) return 'A minimum of ' + Number(discount.minimumItems) + ' item(s) is required.';
+  if (discount.usageLimit != null && Number(discount.usageCount || 0) >= Number(discount.usageLimit)) return 'Discount code usage limit has been reached.';
+  if (discount.allowedEmail && buyerEmail !== normalizeEmail(discount.allowedEmail)) return 'This discount code is linked to a different customer email.';
+  if (discount.singleUsePerBuyer && buyerEmail) {
+    const used = await d.collection('orders').findOne({ discountCode: discount.code, 'customer.email': { $regex: '^' + escapeRegex(buyerEmail) + '$', $options: 'i' }, paymentStatus: 'COMPLETED' });
+    if (used) return 'This discount code has already been used by this buyer.';
+  }
+  return null;
 }
 
 function orderFilter(id) {
