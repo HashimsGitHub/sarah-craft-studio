@@ -98,8 +98,10 @@ function cleanDiscount(input, existing = {}) {
   const minimumOrder = Number(input.minimumOrder ?? existing.minimumOrder ?? 0);
   const minimumItems = Number(input.minimumItems ?? existing.minimumItems ?? 0);
   const usageLimit = input.usageLimit === '' || input.usageLimit == null ? null : Number(input.usageLimit);
-  const allowedEmail = normalizeEmail(input.allowedEmail ?? existing.allowedEmail);
-  if (!allowedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(allowedEmail)) throw new Error('A valid customer email is required');
+  const audienceType = cleanString(input.audienceType || existing.audienceType || (existing.allowedEmail ? 'email' : 'campaign'), 20);
+  if (!['email', 'campaign'].includes(audienceType)) throw new Error('Invalid voucher audience');
+  const allowedEmail = audienceType === 'email' ? normalizeEmail(input.allowedEmail ?? existing.allowedEmail) : '';
+  if (audienceType === 'email' && (!allowedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(allowedEmail))) throw new Error('A valid customer email is required');
   const hasStartsAt = Object.prototype.hasOwnProperty.call(input, 'startsAt');
   const hasExpiresAt = Object.prototype.hasOwnProperty.call(input, 'expiresAt');
   return {
@@ -111,7 +113,8 @@ function cleanDiscount(input, existing = {}) {
     usageLimit: usageLimit == null ? null : Math.max(1, Math.floor(usageLimit)),
     usageCount: Number(existing.usageCount || 0),
     singleUsePerBuyer: input.singleUsePerBuyer !== undefined ? Boolean(input.singleUsePerBuyer) : (existing.singleUsePerBuyer !== false),
-    allowedEmail,
+    audienceType,
+    allowedEmail: allowedEmail || null,
     startsAt: hasStartsAt ? (input.startsAt ? new Date(input.startsAt) : null) : (existing.startsAt || null),
     expiresAt: hasExpiresAt ? (input.expiresAt ? new Date(input.expiresAt) : null) : (existing.expiresAt || null),
     active: input.active !== undefined ? Boolean(input.active) : (existing.active !== false),
@@ -131,7 +134,10 @@ async function discountEligibility(d, discount, opts = {}) {
   if (discount.minimumOrder && subtotal < Number(discount.minimumOrder)) return 'Minimum order is CAD $' + Number(discount.minimumOrder).toFixed(2) + '.';
   if (discount.minimumItems && itemCount < Number(discount.minimumItems)) return 'A minimum of ' + Number(discount.minimumItems) + ' item(s) is required.';
   if (discount.usageLimit != null && Number(discount.usageCount || 0) >= Number(discount.usageLimit)) return 'Discount code usage limit has been reached.';
-  if (discount.allowedEmail && buyerEmail !== normalizeEmail(discount.allowedEmail)) return 'This discount code is linked to a different customer email.';
+  if (discount.audienceType !== 'campaign' && discount.allowedEmail) {
+    if (!buyerEmail) return 'Enter the customer email linked to this private discount.';
+    if (buyerEmail !== normalizeEmail(discount.allowedEmail)) return 'This discount code is linked to a different customer email.';
+  }
   if (discount.singleUsePerBuyer && buyerEmail) {
     const used = await d.collection('orders').findOne({ discountCode: discount.code, 'customer.email': { $regex: '^' + escapeRegex(buyerEmail) + '$', $options: 'i' }, paymentStatus: 'COMPLETED' });
     if (used) return 'This discount code has already been used by this buyer.';
