@@ -77,29 +77,72 @@ function cleanProduct(input, existing = {}) {
   };
 }
 
+function normalizeEmail(value) {
+  return cleanString(value, 320).toLowerCase();
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+}
+
 function cleanDiscount(input, existing = {}) {
   const code = cleanString(input.code || existing.code, 50).toUpperCase();
   if (!code) throw new Error('Discount code is required');
+  if (!existing.code && !/^SURPRISE[A-Z0-9]{6}$/.test(code)) throw new Error('New promo codes must be SURPRISE followed by exactly 6 letters or numbers');
   const allowedTypes = ['percentage', 'fixed', 'free_shipping'];
   const type = cleanString(input.type || existing.type || 'percentage', 50);
   if (!allowedTypes.includes(type)) throw new Error('Invalid discount type');
   const value = Number(input.value ?? existing.value ?? 0);
   if (!Number.isFinite(value) || value < 0) throw new Error('Discount value must be a valid non-negative number');
+  if (type === 'percentage' && value > 100) throw new Error('Percentage discount cannot exceed 100');
   const minimumOrder = Number(input.minimumOrder ?? existing.minimumOrder ?? 0);
+  const minimumItems = Number(input.minimumItems ?? existing.minimumItems ?? 0);
   const usageLimit = input.usageLimit === '' || input.usageLimit == null ? null : Number(input.usageLimit);
+  const audienceType = cleanString(input.audienceType || existing.audienceType || (existing.allowedEmail ? 'email' : 'campaign'), 20);
+  if (!['email', 'campaign'].includes(audienceType)) throw new Error('Invalid voucher audience');
+  const allowedEmail = audienceType === 'email' ? normalizeEmail(input.allowedEmail ?? existing.allowedEmail) : '';
+  if (audienceType === 'email' && (!allowedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(allowedEmail))) throw new Error('A valid customer email is required');
+  const hasStartsAt = Object.prototype.hasOwnProperty.call(input, 'startsAt');
+  const hasExpiresAt = Object.prototype.hasOwnProperty.call(input, 'expiresAt');
   return {
     code,
     type,
-    value,
+    value: type === 'free_shipping' ? 0 : value,
     minimumOrder: Number.isFinite(minimumOrder) && minimumOrder >= 0 ? minimumOrder : 0,
-    usageLimit: usageLimit == null ? null : Math.max(0, usageLimit),
+    minimumItems: Number.isFinite(minimumItems) && minimumItems >= 0 ? Math.floor(minimumItems) : 0,
+    usageLimit: usageLimit == null ? null : Math.max(1, Math.floor(usageLimit)),
     usageCount: Number(existing.usageCount || 0),
-    startsAt: input.startsAt ? new Date(input.startsAt) : (existing.startsAt || null),
-    expiresAt: input.expiresAt ? new Date(input.expiresAt) : (existing.expiresAt || null),
+    singleUsePerBuyer: input.singleUsePerBuyer !== undefined ? Boolean(input.singleUsePerBuyer) : (existing.singleUsePerBuyer !== false),
+    audienceType,
+    allowedEmail: allowedEmail || null,
+    startsAt: hasStartsAt ? (input.startsAt ? new Date(input.startsAt) : null) : (existing.startsAt || null),
+    expiresAt: hasExpiresAt ? (input.expiresAt ? new Date(input.expiresAt) : null) : (existing.expiresAt || null),
     active: input.active !== undefined ? Boolean(input.active) : (existing.active !== false),
     createdAt: existing.createdAt || new Date(),
     updatedAt: new Date()
   };
+}
+
+async function discountEligibility(d, discount, opts = {}) {
+  const subtotal = Number(opts.subtotal || 0);
+  const itemCount = Number(opts.itemCount || 0);
+  const buyerEmail = normalizeEmail(opts.email);
+  if (!discount || discount.active === false) return 'Discount code is not valid.';
+  const now = new Date();
+  if (discount.startsAt && new Date(discount.startsAt) > now) return 'Discount code is not active yet.';
+  if (discount.expiresAt && new Date(discount.expiresAt) < now) return 'Discount code has expired.';
+  if (discount.minimumOrder && subtotal < Number(discount.minimumOrder)) return 'Minimum order is CAD $' + Number(discount.minimumOrder).toFixed(2) + '.';
+  if (discount.minimumItems && itemCount < Number(discount.minimumItems)) return 'A minimum of ' + Number(discount.minimumItems) + ' item(s) is required.';
+  if (discount.usageLimit != null && Number(discount.usageCount || 0) >= Number(discount.usageLimit)) return 'Discount code usage limit has been reached.';
+  if (discount.audienceType !== 'campaign' && discount.allowedEmail) {
+    if (!buyerEmail) return 'Enter the customer email linked to this private discount.';
+    if (buyerEmail !== normalizeEmail(discount.allowedEmail)) return 'This discount code is linked to a different customer email.';
+  }
+  if (discount.singleUsePerBuyer && buyerEmail) {
+    const used = await d.collection('orders').findOne({ discountCode: discount.code, 'customer.email': { $regex: '^' + escapeRegex(buyerEmail) + '$', $options: 'i' }, paymentStatus: 'COMPLETED' });
+    if (used) return 'This discount code has already been used by this buyer.';
+  }
+  return null;
 }
 
 function orderFilter(id) {
@@ -124,16 +167,12 @@ app.http('discountValidate', {
   handler: async req => {
     const input = await readBody(req);
     const code = cleanString(input.code, 50).toUpperCase();
-    const subtotal = Number(input.subtotal || 0);
     const d = await db();
     const discount = await d.collection('discounts').findOne({ code, active: true });
     if (!discount) return json({ valid: false, message: 'Discount code is not valid.' }, 404);
-    const now = new Date();
-    if (discount.startsAt && new Date(discount.startsAt) > now) return json({ valid: false, message: 'Discount code is not active yet.' }, 400);
-    if (discount.expiresAt && new Date(discount.expiresAt) < now) return json({ valid: false, message: 'Discount code has expired.' }, 400);
-    if (discount.minimumOrder && subtotal < discount.minimumOrder) return json({ valid: false, message: `Minimum order is CAD $${Number(discount.minimumOrder).toFixed(2)}.` }, 400);
-    if (discount.usageLimit != null && Number(discount.usageCount || 0) >= Number(discount.usageLimit)) return json({ valid: false, message: 'Discount code usage limit has been reached.' }, 400);
-    return json({ valid: true, code: discount.code, type: discount.type, value: discount.value || 0 });
+    const message = await discountEligibility(d, discount, { subtotal: input.subtotal, itemCount: input.itemCount, email: input.email });
+    if (message) return json({ valid: false, message }, 400);
+    return json({ valid: true, code: discount.code, type: discount.type, value: discount.value || 0, email: normalizeEmail(input.email) });
   }
 });
 
@@ -186,14 +225,15 @@ app.http('checkoutCreate', {
       let discountCode = null;
       if (x.discount?.code) {
         const c = await d.collection('discounts').findOne({ code: cleanString(x.discount.code, 50).toUpperCase(), active: true });
-        const now = new Date();
-        const usable = c && (!c.startsAt || new Date(c.startsAt) <= now) && (!c.expiresAt || new Date(c.expiresAt) >= now) && (!c.minimumOrder || oc.subtotal >= Number(c.minimumOrder)) && (c.usageLimit == null || Number(c.usageCount || 0) < Number(c.usageLimit));
-        if (usable) {
-          discountCode = c.code;
-          if (c.type === 'percentage') discount = oc.subtotal * (Number(c.value) / 100);
-          if (c.type === 'fixed') discount = Math.min(oc.subtotal, Number(c.value));
-          if (c.type === 'free_shipping') shipping = 0;
-        }
+        if (!c) throw new Error('Discount code is not valid.');
+        const buyerEmail = normalizeEmail(x.customer?.email);
+        const itemCount = oc.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        const message = await discountEligibility(d, c, { subtotal: oc.subtotal, itemCount, email: buyerEmail });
+        if (message) throw new Error(message);
+        discountCode = c.code;
+        if (c.type === 'percentage') discount = oc.subtotal * (Number(c.value) / 100);
+        if (c.type === 'fixed') discount = Math.min(oc.subtotal, Number(c.value));
+        if (c.type === 'free_shipping') shipping = 0;
       }
       const total = Math.max(0, oc.subtotal - discount + shipping);
       const pp = await paypalToken();
