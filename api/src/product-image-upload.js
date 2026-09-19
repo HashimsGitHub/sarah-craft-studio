@@ -45,7 +45,7 @@ function parseConnectionString(value) {
 
 function sharedKeyAuthorization({ accountName, accountKey, method, contentLength, contentType, containerName, blobName, date, version }) {
   const canonicalHeaders = [
-    `x-ms-blob-cache-control:public, max-age=31536000, immutable`,
+    'x-ms-blob-cache-control:no-cache',
     'x-ms-blob-type:BlockBlob',
     `x-ms-date:${date}`,
     `x-ms-version:${version}`
@@ -103,10 +103,7 @@ app.http('adminProductImageUpload', {
 
       const requestedName = safeName(body.fileName || body.productSlug || 'product-image');
       const withoutExtension = requestedName.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-      // Keep the original basename while giving each upload its own cacheable URL.
-      const productFolder = safeName(body.productSlug || 'product');
-      const uploadFolder = crypto.randomBytes(4).toString('hex');
-      const blobName = `images/products/${productFolder}/${uploadFolder}/${withoutExtension}.webp`;
+      const blobName = `images/products/${withoutExtension}.webp`;
       const { accountName, accountKey, blobEndpoint } = parseConnectionString(connectionString);
       const encodedBlobName = blobName.split('/').map(encodeURIComponent).join('/');
       const uploadUrl = `${blobEndpoint}/${encodeURIComponent(containerName)}/${encodedBlobName}`;
@@ -131,7 +128,7 @@ app.http('adminProductImageUpload', {
           'x-ms-date': date,
           'x-ms-version': version,
           'x-ms-blob-type': 'BlockBlob',
-          'x-ms-blob-cache-control': 'public, max-age=31536000, immutable',
+          'x-ms-blob-cache-control': 'no-cache',
           'Content-Type': contentType,
           'Content-Length': String(bytes.length)
         },
