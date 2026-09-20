@@ -47,6 +47,42 @@ function ordersTable(orders,editable=true){
   return `<div class="table-wrap"><table class="table"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Total</th><th>Payment</th><th>Fulfilment</th>${editable?'<th>Manage</th>':''}</tr></thead><tbody>${orders.map(o=>`<tr><td><strong>${esc(o.orderNumber||o.paypalOrderId||'')}</strong></td><td>${date(o.createdAt)}</td><td>${esc(o.customer?.email||'')}</td><td>${money(o.total)}</td><td>${esc(o.paymentStatus||'')}</td><td><span class="admin-status-pill">${esc(statusLabel(o.fulfilmentStatus))}</span></td>${editable?`<td><button class="btn secondary admin-small" data-order="${esc(o.orderNumber||o.paypalOrderId||o._id)}">Manage</button></td>`:''}</tr>`).join('')}</tbody></table></div>`;
 }
 
+function orderCustomerDetails(o){
+  const c=o.customer||{};
+  const name=[c.firstName,c.lastName].filter(Boolean).join(' ')||c.name||'Name not provided';
+  return `<strong>${esc(name)}</strong><br>${esc(c.email||'Email not provided')}<br>${esc(c.phone||'Phone not provided')}`;
+}
+
+function orderDeliveryDetails(o){
+  const c=o.customer||{},delivery=o.delivery||{};
+  const method=delivery.method||'shipping';
+  const address=[c.address1,c.address2,c.city,[c.province,c.postalCode].filter(Boolean).join(' '),c.country].filter(Boolean);
+  const destination=method==='pickup'?'Calgary pickup — do not ship':method==='digital'?'Digital delivery — no parcel to ship':'Ship to';
+  const addressHtml=address.length?address.map(esc).join('<br>'):'No delivery address recorded';
+  return `<p><strong>${esc(destination)}</strong>${delivery.pickupCode?` · Code: ${esc(delivery.pickupCode)}`:''}</p>`+
+    `<address>${addressHtml}</address>`+
+    `<p>Carrier: ${esc(delivery.carrier||'Not set')} · Tracking: ${esc(delivery.trackingNumber||'Not set')}</p>`+
+    `<p>Shipped: ${date(delivery.shippedAt)} · Delivered: ${date(delivery.deliveredAt)}</p>`;
+}
+
+function orderItemsDetails(o){
+  if(!o.items?.length)return '<p class="admin-error">No items recorded for this order.</p>';
+  return o.items.map(i=>{
+    const quantity=Number(i.quantity)||1;
+    return `<div class="admin-order-item"><div><strong>${quantity} × ${esc(i.name||i.productId||'Product')}</strong>`+
+      `<small>Product ID: ${esc(i.productId||'Not recorded')} · ${money(i.unitPrice)} each</small></div>`+
+      `<strong>${money(Number(i.unitPrice)*quantity)}</strong>`+
+      `${i.personalization?`<small>Personalization: ${esc(i.personalization)}</small>`:''}</div>`;
+  }).join('');
+}
+
+function orderPaymentDetails(o){
+  return `<p>Payment: <strong>${esc(o.paymentStatus||'Unknown')}</strong> · Fulfilment: ${esc(statusLabel(o.fulfilmentStatus))}</p>`+
+    `<p>PayPal order ID: ${esc(o.paypalOrderId||'Not recorded')}<br>Placed: ${date(o.createdAt)} · Paid: ${date(o.paidAt)}</p>`+
+    `<p>Subtotal ${money(o.subtotal)} · Discount ${money(o.discount)}${o.discountCode?` (${esc(o.discountCode)})`:''} · Shipping ${money(o.shipping)}</p>`+
+    `<p><strong>Total ${money(o.total)} ${esc(o.currency||'CAD')}</strong></p>`;
+}
+
 async function initProducts(){
   const form=document.querySelector('#admin-product-form');
   const list=document.querySelector('#admin-products');
@@ -215,18 +251,19 @@ async function initOrders(){
     const o=(await req('/orders/'+encodeURIComponent(id))).order;
     editor.hidden=false;editor.dataset.order=o.orderNumber||o.paypalOrderId||o._id;
     editor.querySelector('#order-editor-title').textContent=`Order ${o.orderNumber||o.paypalOrderId||''}`;
-    editor.querySelector('#order-customer').innerHTML=`<strong>${esc(o.customer?.name||o.customer?.email||'Customer')}</strong><br>${esc(o.customer?.email||'')}<br>${esc(o.customer?.phone||'')}`;
-    editor.querySelector('#order-items').innerHTML=(o.items||[]).map(i=>`<div class="admin-order-item"><span>${Number(i.quantity)||1} × ${esc(i.name)}</span><strong>${money((Number(i.unitPrice)||0)*(Number(i.quantity)||1))}</strong>${i.personalization?`<small>Personalization: ${esc(i.personalization)}</small>`:''}</div>`).join('');
+    editor.querySelector('#order-customer').innerHTML=orderCustomerDetails(o);
+    editor.querySelector('#order-delivery').innerHTML=orderDeliveryDetails(o);
+    editor.querySelector('#order-items').innerHTML=orderItemsDetails(o);
     editor.querySelector('[name="fulfilmentStatus"]').value=o.fulfilmentStatus||'new';
     editor.querySelector('[name="method"]').value=o.delivery?.method||'shipping';
     editor.querySelector('[name="carrier"]').value=o.delivery?.carrier||'';
     editor.querySelector('[name="trackingNumber"]').value=o.delivery?.trackingNumber||'';
     editor.querySelector('[name="adminNotes"]').value=o.adminNotes||'';
-    editor.querySelector('#order-summary').innerHTML=`Subtotal ${money(o.subtotal)} · Discount ${money(o.discount)} · Shipping ${money(o.shipping)} · <strong>Total ${money(o.total)}</strong><br>Payment: ${esc(o.paymentStatus||'')} · Created: ${date(o.createdAt)}`;
+    editor.querySelector('#order-summary').innerHTML=orderPaymentDetails(o);
     window.scrollTo({top:editor.offsetTop-30,behavior:'smooth'});
   }
 
-  editor.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget;const d=Object.fromEntries(new FormData(f));await req('/orders/'+encodeURIComponent(editor.dataset.order),{method:'PUT',body:JSON.stringify({fulfilmentStatus:d.fulfilmentStatus,adminNotes:d.adminNotes,delivery:{method:d.method,carrier:d.carrier,trackingNumber:d.trackingNumber}})});document.querySelector('#order-save-status').textContent='Order updated successfully.';await draw();};
+  editor.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget;const d=Object.fromEntries(new FormData(f));await req('/orders/'+encodeURIComponent(editor.dataset.order),{method:'PUT',body:JSON.stringify({fulfilmentStatus:d.fulfilmentStatus,adminNotes:d.adminNotes,delivery:{method:d.method,carrier:d.carrier,trackingNumber:d.trackingNumber}})});await openOrder(editor.dataset.order);document.querySelector('#order-save-status').textContent='Order updated successfully.';await draw();};
   document.querySelector('#order-editor-close').onclick=()=>{editor.hidden=true;};
   if(filter) filter.onchange=draw;
   await draw();
