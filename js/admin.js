@@ -55,7 +55,7 @@ async function initProducts(){
 
   async function draw(){
     const x=await req('/products');
-    list.innerHTML=x.products.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.products.map(p=>`<tr><td><strong>${esc(p.name)}</strong><br><small>${esc(p.id)}</small></td><td>${esc(p.category)}</td><td>${money(p.price)}</td><td>${Number(p.stock)||0}</td><td>${p.active?'Active':'Hidden'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-product="${esc(p.id)}">Edit</button><button class="admin-danger" data-delete-product="${esc(p.id)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No products in MongoDB yet.</div>';
+    list.innerHTML=x.products.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Product</th><th>Category</th><th>Ribbon</th><th>Featured</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>${x.products.map(p=>`<tr><td><strong>${esc(p.name)}</strong><br><small>${esc(p.id)}</small></td><td>${esc(p.category)}</td><td>${p.ribbon?`<span class="admin-status-pill">${esc(p.ribbon)}</span>`:'—'}</td><td>${p.featured?'<span class="admin-status-pill">Featured</span>':'—'}</td><td>${money(p.price)}</td><td>${Number(p.stock)||0}</td><td>${p.active?'Active':'Hidden'}</td><td><div class="admin-actions"><button class="btn secondary admin-small" data-edit-product="${esc(p.id)}">Edit</button><button class="admin-danger" data-delete-product="${esc(p.id)}">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="admin-empty">No products in MongoDB yet.</div>';
     list.querySelectorAll('[data-edit-product]').forEach(b=>b.onclick=async()=>fillProduct((await req('/products/'+encodeURIComponent(b.dataset.editProduct))).product));
     list.querySelectorAll('[data-delete-product]').forEach(b=>b.onclick=async()=>{if(confirm(`Delete ${b.dataset.deleteProduct}?`)){await req('/products/'+encodeURIComponent(b.dataset.deleteProduct),{method:'DELETE'});await draw();}});
   }
@@ -65,6 +65,7 @@ async function initProducts(){
     document.querySelector('#product-image-upload-status').textContent='';
     for(const [k,v] of Object.entries(p)){if(form.elements[k]&&form.elements[k].type!=='checkbox') form.elements[k].value=Array.isArray(v)?v.join(', '):(v??'');}
     form.personalizable.checked=!!p.personalizable;
+    form.featured.checked=!!p.featured;
     form.active.checked=p.active!==false;
     form.dataset.editing=p.id;
     document.querySelector('#product-form-title').textContent='Edit product';
@@ -86,7 +87,7 @@ async function initProducts(){
       }
       const d=Object.fromEntries(new FormData(form));
       if(!d.image) throw Error('Add an image URL or choose an image to upload.');
-      d.price=Number(d.price);d.stock=Number(d.stock||0);d.personalizable=form.personalizable.checked;d.active=form.active.checked;
+      d.price=Number(d.price);d.stock=Number(d.stock||0);d.personalizable=form.personalizable.checked;d.featured=form.featured.checked;d.active=form.active.checked;
       d.collections=String(d.collections||'').split(',').map(x=>x.trim()).filter(Boolean);
       const editing=form.dataset.editing;
       await req(editing?'/products/'+encodeURIComponent(editing):'/products',{method:editing?'PUT':'POST',body:JSON.stringify(d)});
