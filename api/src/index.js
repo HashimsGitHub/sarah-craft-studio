@@ -71,6 +71,7 @@ function cleanProduct(input, existing = {}) {
     image: cleanString(input.image ?? existing.image, 2000),
     images: Array.isArray(input.images) ? input.images.map(x => cleanString(x, 2000)).filter(Boolean) : (existing.images || []),
     personalizable: input.personalizable !== undefined ? Boolean(input.personalizable) : Boolean(existing.personalizable),
+    featured: input.featured !== undefined ? Boolean(input.featured) : Boolean(existing.featured),
     stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
     active: input.active !== undefined ? Boolean(input.active) : (existing.active !== false),
     createdAt: existing.createdAt || now,
