@@ -64,6 +64,7 @@ function cleanProduct(input, existing = {}) {
     name: cleanString(input.name ?? existing.name, 200),
     category: cleanString(input.category ?? existing.category, 100),
     collections: Array.isArray(input.collections) ? input.collections.map(x => cleanString(x, 100)).filter(Boolean) : (existing.collections || []),
+    ribbon: cleanString(input.ribbon ?? existing.ribbon, 40).toUpperCase(),
     price,
     currency: cleanString(input.currency || existing.currency || 'CAD', 10) || 'CAD',
     description: cleanString(input.description ?? existing.description, 5000),
